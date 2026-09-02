@@ -1,0 +1,16 @@
+fastapi==0.109.2
+uvicorn==0.27.1
+pydantic==2.6.1
+pydantic-settings==2.1.0
+langchain==0.1.5
+langgraph==0.0.21
+langchain-groq==0.0.1
+sqlalchemy==2.0.25
+alembic==1.13.1
+psycopg2-binary==2.9.9
+python-dotenv==1.0.1
+httpx==0.26.0
+pyjwt==2.8.0
+passlib==1.7.4
+bcrypt==4.1.2
+pytest==8.0.0
