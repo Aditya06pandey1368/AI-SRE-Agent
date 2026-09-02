@@ -3,15 +3,51 @@ from sqlalchemy.orm import Session
 from typing import Any, Dict
 
 from app.database import get_db
-from app.models import Alert, Incident, Service
+from app.models import Alert, Incident, Service, Postmortem
 from app.schemas import WebhookPayload
 import uuid
+
+from app.graph.workflow import create_incident_workflow
+import json
 
 router = APIRouter(prefix="/api/v1/alerts", tags=["alerts"])
 
 def trigger_investigation(incident_id: str, db: Session):
-    # This will be implemented in Milestone 6 (LangGraph)
-    print(f"Triggering investigation for incident {incident_id}")
+    incident = db.query(Incident).filter(Incident.id == incident_id).first()
+    if not incident:
+        return
+
+    # In a real app we'd fetch the latest alert for this incident
+    alert = db.query(Alert).filter(Alert.incident_id == incident_id).order_by(Alert.timestamp.desc()).first()
+    
+    workflow = create_incident_workflow()
+    
+    initial_state = {
+        "incident_id": incident_id,
+        "service": incident.service_id,
+        "alert": alert.payload if alert else {},
+        "severity": incident.severity,
+        "metrics": {},
+        "logs": [],
+        "deployments": [],
+        "investigation_history": [],
+        "iteration_count": 0,
+        "approval_status": "not_required"
+    }
+    
+    final_state = workflow.invoke(initial_state)
+    
+    # Update DB with final state
+    incident.root_cause = final_state.get("root_cause")
+    incident.confidence = final_state.get("confidence")
+    incident.status = "pending_approval" if final_state.get("approval_status") == "pending" else "investigating"
+    
+    if final_state.get("final_report"):
+        pm = Postmortem(incident_id=incident_id, content=final_state["final_report"])
+        db.add(pm)
+        incident.status = "resolved"
+        
+    db.commit()
 
 @router.post("/webhook")
 def receive_alert(payload: WebhookPayload, background_tasks: BackgroundTasks, db: Session = Depends(get_db)):
