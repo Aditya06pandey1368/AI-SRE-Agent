@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.api import alerts, incidents
 
 app = FastAPI(
     title="AI SRE - Autonomous Incident Response Platform API",
@@ -15,6 +16,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(alerts.router)
+app.include_router(incidents.router)
 
 @app.get("/")
 def root():
